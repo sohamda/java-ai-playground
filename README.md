@@ -11,7 +11,13 @@ this demo simply expands on it by adding a React UI and a database.
 
 ## Requirements
 - Java 17+
-- OpenAI API key in `OPENAI_API_KEY` environment variable
+- Azure OpenAI details in `application.properties`
+
+````properties
+azure.openai.endpoint = https://blala.openai.azure.com/
+azure.openai.key = KEY
+azure.deployment.name = DEPLOYMENT_NAME
+````
 
 ## Running
 Run the app by running `Application.java` in your IDE or `mvn` in the command line.

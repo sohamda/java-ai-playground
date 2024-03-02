@@ -10,10 +10,10 @@ import dev.langchain4j.data.document.splitter.DocumentSplitters;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.memory.chat.TokenWindowChatMemory;
 import dev.langchain4j.model.Tokenizer;
+import dev.langchain4j.model.azure.AzureOpenAiStreamingChatModel;
 import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import dev.langchain4j.model.embedding.AllMiniLmL6V2EmbeddingModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
-import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.model.openai.OpenAiTokenizer;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
@@ -85,10 +85,15 @@ public class Application implements AppShellConfigurator {
     }
 
     @Bean
-    StreamingChatLanguageModel chatLanguageModel(@Value("${openai.api.key}") String apiKey) {
-        return OpenAiStreamingChatModel.builder()
+    StreamingChatLanguageModel chatLanguageModel(@Value("${azure.openai.key}") String apiKey,
+          @Value("${azure.openai.endpoint}") String endpoint,
+          @Value("${azure.deployment.name}") String deploymentName) {
+        return AzureOpenAiStreamingChatModel.builder()
                 .apiKey(apiKey)
-                .modelName("gpt-4-turbo-preview")
+                .endpoint(endpoint)
+                .deploymentName(deploymentName)
+                .temperature(0.3)
+                .logRequestsAndResponses(true)
                 .build();
     }
 
