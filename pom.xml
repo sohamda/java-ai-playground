@@ -12,7 +12,7 @@
     <properties>
         <java.version>17</java.version>
         <hilla.version>2.3.1</hilla.version>
-        <langchain.version>0.26.1</langchain.version>
+        <version.semantic-kernel>0.2.13-alpha</version.semantic-kernel>
     </properties>
 
     <parent>
@@ -88,26 +88,29 @@
         </dependency>
 
         <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j</artifactId>
-            <version>${langchain.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-open-ai</artifactId>
-            <version>${langchain.version}</version>
+            <groupId>com.microsoft.semantic-kernel</groupId>
+            <artifactId>semantickernel-core</artifactId>
+            <version>${version.semantic-kernel}</version>
         </dependency>
         <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-ollama</artifactId>
-            <version>${langchain.version}</version>
+            <groupId>com.microsoft.semantic-kernel</groupId>
+            <artifactId>semantickernel-settings-loader</artifactId>
+            <version>${version.semantic-kernel}</version>
         </dependency>
-
         <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-embeddings-all-minilm-l6-v2</artifactId>
-            <version>${langchain.version}</version>
+            <groupId>com.microsoft.semantic-kernel</groupId>
+            <artifactId>semantickernel-planners</artifactId>
+            <version>${version.semantic-kernel}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.microsoft.semantic-kernel</groupId>
+            <artifactId>semantickernel-connectors-ai-openai</artifactId>
+            <version>${version.semantic-kernel}</version>
+        </dependency>
+                <dependency>
+            <groupId>com.microsoft.semantic-kernel</groupId>
+            <artifactId>semantickernel-plugin-core</artifactId>
+            <version>${version.semantic-kernel}</version>
         </dependency>
 
         <dependency>

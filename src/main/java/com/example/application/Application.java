@@ -1,26 +1,23 @@
 package com.example.application;
 
+import com.azure.ai.openai.OpenAIAsyncClient;
 import com.example.application.services.BookingTools;
-import com.example.application.services.CustomerSupportAgent;
+import com.example.application.services.FlightService;
+import com.example.application.services.SearchTool;
+import com.microsoft.semantickernel.Kernel;
+import com.microsoft.semantickernel.SKBuilders;
+import com.microsoft.semantickernel.ai.embeddings.TextEmbeddingGeneration;
+import com.microsoft.semantickernel.chatcompletion.ChatCompletion;
+import com.microsoft.semantickernel.connectors.ai.openai.util.ClientType;
+import com.microsoft.semantickernel.connectors.ai.openai.util.OpenAIClientProvider;
+import com.microsoft.semantickernel.exceptions.ConfigurationException;
+import com.microsoft.semantickernel.memory.MemoryStore;
+import com.microsoft.semantickernel.memory.VolatileMemoryStore;
+import com.microsoft.semantickernel.planner.actionplanner.ActionPlanner;
+import com.microsoft.semantickernel.planner.stepwiseplanner.DefaultStepwisePlanner;
+import com.microsoft.semantickernel.planner.stepwiseplanner.StepwisePlanner;
 import com.vaadin.flow.component.page.AppShellConfigurator;
 import com.vaadin.flow.theme.Theme;
-import dev.langchain4j.data.document.DocumentSplitter;
-import dev.langchain4j.data.document.parser.TextDocumentParser;
-import dev.langchain4j.data.document.splitter.DocumentSplitters;
-import dev.langchain4j.data.segment.TextSegment;
-import dev.langchain4j.memory.chat.TokenWindowChatMemory;
-import dev.langchain4j.model.Tokenizer;
-import dev.langchain4j.model.chat.StreamingChatLanguageModel;
-import dev.langchain4j.model.embedding.AllMiniLmL6V2EmbeddingModel;
-import dev.langchain4j.model.embedding.EmbeddingModel;
-import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
-import dev.langchain4j.model.openai.OpenAiTokenizer;
-import dev.langchain4j.rag.content.retriever.ContentRetriever;
-import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
-import dev.langchain4j.service.AiServices;
-import dev.langchain4j.store.embedding.EmbeddingStore;
-import dev.langchain4j.store.embedding.EmbeddingStoreIngestor;
-import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -29,11 +26,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 
-import java.io.IOException;
-
-import static dev.langchain4j.data.document.loader.FileSystemDocumentLoader.loadDocument;
-import static dev.langchain4j.model.openai.OpenAiModelName.GPT_4;
-
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 @SpringBootApplication
 @Theme(value = "customer-support-agent")
@@ -43,86 +37,85 @@ public class Application implements AppShellConfigurator {
         SpringApplication.run(Application.class, args);
     }
 
-    @Bean
-    EmbeddingModel embeddingModel() {
-        return new AllMiniLmL6V2EmbeddingModel();
-    }
-
-    @Bean
-    EmbeddingStore<TextSegment> embeddingStore() {
-        return new InMemoryEmbeddingStore<>();
-    }
-
-    @Bean
-    Tokenizer tokenizer() {
-        return new OpenAiTokenizer(GPT_4);
-    }
-
 
     // In the real world, ingesting documents would often happen separately, on a CI server or similar
     @Bean
-    CommandLineRunner docsToEmbeddings(
-            EmbeddingModel embeddingModel,
-            EmbeddingStore<TextSegment> embeddingStore,
-            Tokenizer tokenizer,
-            ResourceLoader resourceLoader
-    ) throws IOException {
+    CommandLineRunner docsToEmbeddings(Kernel embeddingKernel, ResourceLoader resourceLoader) {
         return args -> {
             Resource resource =
                     resourceLoader.getResource("classpath:terms-of-service.txt");
-            var termsOfUse = loadDocument(resource.getFile().toPath(), new TextDocumentParser());
 
-            DocumentSplitter documentSplitter = DocumentSplitters.recursive(200, 0,
-                    tokenizer);
-
-            EmbeddingStoreIngestor ingestor = EmbeddingStoreIngestor.builder()
-                    .documentSplitter(documentSplitter)
-                    .embeddingModel(embeddingModel)
-                    .embeddingStore(embeddingStore)
-                    .build();
-            ingestor.ingest(termsOfUse);
+            embeddingKernel.getMemory().saveInformationAsync("termsOfService",
+                    resource.getContentAsString(StandardCharsets.UTF_8),
+                    "termsOfService",
+                    "terms of service of Funnair", null);
         };
     }
 
     @Bean
-    StreamingChatLanguageModel chatLanguageModel(@Value("${openai.api.key}") String apiKey) {
-        return OpenAiStreamingChatModel.builder()
-                .apiKey(apiKey)
-                .modelName("gpt-4-turbo-preview")
+    Kernel embeddingKernel(@Value("${client.azureopenai.key}") String apiKey,
+                           @Value("${client.azureopenai.endpoint}") String endpoint,
+                           @Value("${client.azure.embedding.model}") String modelName) throws ConfigurationException {
+        OpenAIAsyncClient openAIAsyncClient = getOpenAIAsyncClient(apiKey, endpoint);
+
+        TextEmbeddingGeneration textEmbeddingGenerationService =
+                SKBuilders.textEmbeddingGeneration()
+                        .withOpenAIClient(openAIAsyncClient)
+                        .withModelId(modelName)
+                        .build();
+        MemoryStore memoryStore = new VolatileMemoryStore.Builder().build();
+
+        return SKBuilders.kernel()
+                .withDefaultAIService(textEmbeddingGenerationService)
+                .withMemoryStorage(memoryStore)
                 .build();
     }
 
-
     @Bean
-    ContentRetriever retriever(
-            EmbeddingStore<TextSegment> embeddingStore,
-            EmbeddingModel embeddingModel
-    ) {
-        return EmbeddingStoreContentRetriever.builder()
-                .embeddingStore(embeddingStore)
-                .embeddingModel(embeddingModel)
-                .maxResults(2)
-                .minScore(0.6)
-                .build();
+    ActionPlanner actionPlanner(Kernel kernelWithSkills) throws ConfigurationException {
+
+        //return new DefaultStepwisePlanner(kernelWithSkills, null, null);
+
+
+        return new ActionPlanner(kernelWithSkills, null);
     }
 
-
     @Bean
-    CustomerSupportAgent customerSupportAgent(
-            StreamingChatLanguageModel chatLanguageModel,
-            Tokenizer tokenizer,
-            ContentRetriever retriever,
-            BookingTools tools
-    ) {
-
-        return AiServices.builder(CustomerSupportAgent.class)
-                .streamingChatLanguageModel(chatLanguageModel)
-                .chatMemoryProvider(chatId -> TokenWindowChatMemory.builder()
-                        .id(chatId)
-                        .maxTokens(1000, tokenizer)
+    Kernel kernelWithSkills(@Value("${client.azureopenai.key}") String apiKey,
+                            @Value("${client.azureopenai.endpoint}") String endpoint,
+                            @Value("${client.azureopenai.deploymentname}") String modelName,
+                            BookingTools bookingTools, SearchTool searchTool, Kernel embeddingKernel, FlightService flightService) throws ConfigurationException {
+        Kernel kernel = SKBuilders.kernel()
+                .withDefaultAIService(SKBuilders.chatCompletion()
+                        .withModelId(modelName)
+                        .withOpenAIClient(getOpenAIAsyncClient(apiKey, endpoint))
                         .build())
-                .contentRetriever(retriever)
-                .tools(tools)
                 .build();
+
+        kernel.importSkill(bookingTools, "Plugin to get booking details or to update or delete bookings based on parameters such as {{$bookingNumber}}, {{$firstName}} and {{$lastName}}, {{$date}}, {{$from}} and {{$to}}");
+        kernel.importSkill(searchTool, "find the Terms of Service for flight booking, change or update, cancellation for {{$input}}");
+        return kernel;
+    }
+
+    private static OpenAIAsyncClient getOpenAIAsyncClient(String apiKey, String endpoint) throws ConfigurationException {
+        Map<String, String> azureOpenAIConfig =
+                Map.of("client.azureopenai.key", apiKey,
+                        "client.azureopenai.endpoint", endpoint);
+        OpenAIClientProvider clientProvider = new OpenAIClientProvider(azureOpenAIConfig, ClientType.AZURE_OPEN_AI);
+        return clientProvider.getAsyncClient();
+    }
+
+    @Bean
+    Kernel chatAssistantKernel(@Value("${client.azureopenai.key}") String apiKey,
+                                         @Value("${client.azureopenai.endpoint}") String endpoint,
+                                         @Value("${client.azureopenai.deploymentname}") String modelName) throws ConfigurationException {
+        Kernel kernel = SKBuilders.kernel()
+                .withAIService("chatAssistant",
+                        SKBuilders.chatCompletion()
+                        .withModelId(modelName)
+                        .withOpenAIClient(getOpenAIAsyncClient(apiKey, endpoint))
+                        .build(), true, ChatCompletion.class)
+                .build();
+        return kernel;
     }
 }
