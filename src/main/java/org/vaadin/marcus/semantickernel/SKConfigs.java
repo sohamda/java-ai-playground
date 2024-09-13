@@ -20,12 +20,15 @@ import org.vaadin.marcus.service.BookingDetails;
 @Configuration
 public class SKConfigs {
 
-    @Value("${sk.openai.key}") String apiKey;
-    @Value("${sk.azure.openai.endpoint}") String endpoint;
-    @Value("${sk.deployment.name}") String deploymentName;
+    @Value("${sk.openai.key}")
+    String apiKey;
+    @Value("${sk.azure.openai.endpoint}")
+    String endpoint;
+    @Value("${sk.deployment.name}")
+    String deploymentName;
 
     private OpenAIAsyncClient openAIAsyncClient() {
-        if(StringUtils.hasLength(endpoint)) {
+        if (StringUtils.hasLength(endpoint)) {
             return new OpenAIClientBuilder()
                     .endpoint(endpoint)
                     .credential(new AzureKeyCredential(apiKey))

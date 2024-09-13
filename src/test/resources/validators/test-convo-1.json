@@ -1,0 +1,18 @@
+[
+  {
+    "user": "my name is robert, can you get my booking details",
+    "responseIntent": "Ask for lastname and booking number"
+  },
+  {
+    "user": "it is taylor and booking number 105",
+    "responseIntent": "booking details of Robert Taylor, travelling from JFK airport to HEL airport on economy class"
+  },
+  {
+    "user": "I want to cancel my booking",
+    "responseIntent": "response contains cancellation policies and charges and confirmation from user to proceed for cancellation"
+  },
+  {
+    "user": "yes proceed with cancellation",
+    "responseIntent": "response contains confirmation of cancellation"
+  }
+]
