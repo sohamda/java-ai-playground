@@ -15,6 +15,8 @@ import com.microsoft.semantickernel.services.ServiceNotFoundException;
 import com.microsoft.semantickernel.services.chatcompletion.ChatCompletionService;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.SpyBean;
@@ -25,6 +27,8 @@ import reactor.test.StepVerifier;
 
 import java.nio.file.Path;
 import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 public class Evaluator {
@@ -66,16 +70,20 @@ public class Evaluator {
                 .build();
     }
 
-    @Test
-    void evaluateResponse() throws ServiceNotFoundException {
+    @ParameterizedTest
+    @CsvSource({"what is the cancellation policy," +
+            "Cancelling Bookings\n" +
+            "  - Cancel up to 48 hours before flight.\n" +
+            "  - Cancellation fees: $75 for Economy, $50 for Premium Economy, $25 for Business Class.\n" +
+            "  - Refunds processed within 7 business days."})
+    void evaluateResponse(String query, String groundTruth) throws ServiceNotFoundException {
         initializeKernel();
         // do
-        String whatIsTheCancellationPolicy = "what is the cancellation policy";
-        Flux<String> policy = skAssistant.chat("first", whatIsTheCancellationPolicy);
+        Flux<String> policy = skAssistant.chat("first", query);
         // when & then
         Mono.when(policy.collectList().doOnNext(response -> {
-            relevanceCheck(response, whatIsTheCancellationPolicy);
-            accuracyCheck(response);
+            relevanceCheck(response, query);
+            accuracyCheck(response, groundTruth);
         })).block();
     }
 
@@ -89,25 +97,22 @@ public class Evaluator {
                 .withArguments(arguments);
         StepVerifier.create(result.log()).assertNext(r -> {
             System.out.println("Relevancy is :: " + r.getResult());
+            assertThat(r.getResult()).isGreaterThanOrEqualTo("0.9");
         }).expectComplete().verify();
 
     }
 
-    private void accuracyCheck(List<String> response) {
+    private void accuracyCheck(List<String> response, String groundTruth) {
         KernelFunctionArguments arguments = KernelFunctionArguments
                 .builder()
-                .withVariable("text1", """
-                        Cancelling Bookings
-                        - Cancel up to 48 hours before flight.
-                        - Cancellation fees: $75 for Economy, $50 for Premium Economy, $25 for Business Class.
-                        - Refunds processed within 7 business days.
-                        """)
+                .withVariable("text1", groundTruth)
                 .withVariable("text2", response.get(0))
                 .build();
         FunctionInvocation<String> result = evaluator.invokeAsync(relevance.<String>get("Accuracy"))
                 .withArguments(arguments);
         StepVerifier.create(result.log()).assertNext(r -> {
             System.out.println("Accuracy is :: " + r.getResult());
+            assertThat(r.getResult()).isGreaterThanOrEqualTo("0.8");
         }).expectComplete().verify();
 
     }
