@@ -1,0 +1,9 @@
+Given the following two texts validate and score how similar they are.
+Score the answer between 0.0 and 1.0 based on the similarity of the two given texts.
+0 being not similar at all and 1 being very similar.
+
+text-1 >>
+ {{$text1}}
+
+text-2 >>
+ {{$text2}}

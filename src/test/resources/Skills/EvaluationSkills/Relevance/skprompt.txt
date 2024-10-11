@@ -1,0 +1,9 @@
+Given the following question validate the given answer is relevant or not.
+Score the answer between 0 and 1 based on the relevance of the answer to the question/query.
+0 being not relevant at all and 1 being very relevant.
+
+question/query >>
+ {{$question}}
+
+answer >>
+ {{$answer}}
