@@ -77,6 +77,8 @@ public class Evaluator {
     static class TestData {
         public String query;
         public String ground_truth;
+        public String relevance;
+        public String accuracy;
     }
 
     static Stream<Arguments> readTestData() throws IOException {
@@ -86,23 +88,23 @@ public class Evaluator {
                 new TypeReference<>() {
                 }
         );
-        return testData.stream().map(data -> Arguments.of(data.query, data.ground_truth));
+        return testData.stream().map(data -> Arguments.of(data.query, data.ground_truth, data.relevance, data.accuracy));
     }
 
     @ParameterizedTest
     @MethodSource("readTestData")
-    void evaluateResponse(String query, String groundTruth) throws ServiceNotFoundException {
+    void evaluateResponse(String query, String groundTruth, String relevancy, String accuracy) throws ServiceNotFoundException {
         initializeKernel();
         // do
         Flux<String> policy = skAssistant.chat(UUID.randomUUID().toString(), query);
         // when & then
         Mono.when(policy.collectList().doOnNext(response -> {
-            relevanceCheck(response, query);
-            accuracyCheck(response, groundTruth);
+            relevanceCheck(response, query, relevancy);
+            accuracyCheck(response, groundTruth, accuracy);
         })).block();
     }
 
-    private void relevanceCheck(List<String> response, String question) {
+    private void relevanceCheck(List<String> response, String question, String relevancy) {
         KernelFunctionArguments arguments = KernelFunctionArguments
                 .builder()
                 .withVariable("question", question)
@@ -112,12 +114,12 @@ public class Evaluator {
                 .withArguments(arguments);
         StepVerifier.create(result.log()).assertNext(r -> {
             System.out.println("Relevancy is :: " + r.getResult());
-            assertThat(r.getResult()).isGreaterThanOrEqualTo("0.9");
+            assertThat(r.getResult()).isGreaterThanOrEqualTo(relevancy);
         }).expectComplete().verify();
 
     }
 
-    private void accuracyCheck(List<String> response, String groundTruth) {
+    private void accuracyCheck(List<String> response, String groundTruth, String accuracy) {
         KernelFunctionArguments arguments = KernelFunctionArguments
                 .builder()
                 .withVariable("text1", groundTruth)
@@ -127,7 +129,7 @@ public class Evaluator {
                 .withArguments(arguments);
         StepVerifier.create(result.log()).assertNext(r -> {
             System.out.println("Accuracy is :: " + r.getResult());
-            assertThat(r.getResult()).isGreaterThanOrEqualTo("0.8");
+            assertThat(r.getResult()).isGreaterThanOrEqualTo(accuracy);
         }).expectComplete().verify();
 
     }
