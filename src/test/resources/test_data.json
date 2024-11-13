@@ -1,0 +1,10 @@
+[
+  {
+    "query": "what is the cancellation policy",
+    "ground_truth": "Cancelling Bookings - Cancel up to 48 hours before flight.  - Cancel up to 48 hours before flight.  - Cancellation fees: $75 for Economy, $50 for Premium Economy, $25 for Business Class.  - Refunds processed within 7 business days."
+  },
+  {
+    "query": "what is the update or change booking policy",
+    "ground_truth": "- Ensure accuracy of personal information (Name, ID, etc.) as corrections may incur a $25 fee. Changing Bookings- Changes allowed up to 24 hours before flight.- Change via online or contact our support.- Change fee: $50 for Economy, $30 for Premium Economy, Free for Business Class."
+  }
+]

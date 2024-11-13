@@ -4,6 +4,8 @@ import com.azure.ai.openai.OpenAIAsyncClient;
 import com.azure.ai.openai.OpenAIClientBuilder;
 import com.azure.core.credential.AzureKeyCredential;
 import com.azure.core.credential.KeyCredential;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.semantickernel.Kernel;
 import com.microsoft.semantickernel.aiservices.openai.chatcompletion.OpenAIChatCompletion;
 import com.microsoft.semantickernel.orchestration.FunctionInvocation;
@@ -13,7 +15,9 @@ import com.microsoft.semantickernel.semanticfunctions.KernelFunctionArguments;
 import com.microsoft.semantickernel.services.ServiceNotFoundException;
 import com.microsoft.semantickernel.services.chatcompletion.ChatCompletionService;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.SpyBean;
@@ -22,14 +26,16 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
+import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 public class Evaluator {
-
     @SpyBean
     SKAssistant skAssistant;
 
@@ -67,12 +73,23 @@ public class Evaluator {
                 .build();
     }
 
+    static class TestData {
+        public String query;
+        public String ground_truth;
+    }
+
+    static Stream<Arguments> readTestData() throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        List<TestData> testData = mapper.readValue(
+                Paths.get("src/test/resources/test_data.json").toFile(),
+                new TypeReference<>() {
+                }
+        );
+        return testData.stream().map(data -> Arguments.of(data.query, data.ground_truth));
+    }
+
     @ParameterizedTest
-    @CsvSource({"what is the cancellation policy," +
-            "Cancelling Bookings\n" +
-            "  - Cancel up to 48 hours before flight.\n" +
-            "  - Cancellation fees: $75 for Economy, $50 for Premium Economy, $25 for Business Class.\n" +
-            "  - Refunds processed within 7 business days."})
+    @MethodSource("readTestData")
     void evaluateResponse(String query, String groundTruth) throws ServiceNotFoundException {
         initializeKernel();
         // do
