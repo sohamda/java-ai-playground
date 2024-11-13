@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -93,7 +94,7 @@ public class Evaluator {
     void evaluateResponse(String query, String groundTruth) throws ServiceNotFoundException {
         initializeKernel();
         // do
-        Flux<String> policy = skAssistant.chat("first", query);
+        Flux<String> policy = skAssistant.chat(UUID.randomUUID().toString(), query);
         // when & then
         Mono.when(policy.collectList().doOnNext(response -> {
             relevanceCheck(response, query);
